@@ -6,6 +6,8 @@ Created on Thu Apr 11 14:12:37 2019
 """
 
 import pandas as pd
+import os
+print(os.getcwd())
 
 url = "https://archive.ics.uci.edu/ml/machine-learning-databases/autos/imports-85.data"
 
