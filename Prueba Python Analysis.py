@@ -27,3 +27,17 @@ df.describe(include="all") #Full summary, including type object
 df[["width","engine-size"]].describe() #To select columns (atención! 2 corchetes!)
 df.info() #Provides all info showing first and last 30 rows del df
 
+
+## DATA WRANGLING
+
+#Missing values
+df.dropna(subset=["price"], axis=0, inplace=True) #Drop the entire row with mossing price. No funciona porque price no es numérico
+mean = df["curb-weight"].mean()
+df["curb-weight"].replace(np.nan, mean) #Replace by the mean.np not defined
+
+#Data formatting
+df["city-mpg"] = 235/df["city-mpg"] #Convertir una variable a otra unidad, sustituyéndola
+df.rename(columns={"city-mpg": "city-L/100km"}, inplace=True) #Y renombrándola
+print(df["city-mpg"].head(5)) #Error porque ya no existe
+
+df["price"] = df["price"].astype("int") # Cambio de type. No funciona
