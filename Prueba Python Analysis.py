@@ -33,7 +33,7 @@ df[["width","engine-size"]].describe() #To select columns (atención! 2 corchete
 df.info() #Provides all info showing first and last 30 rows del df
 
 
-## DATA WRANGLING
+### DATA WRANGLING ###########################################################
 
 #Missing values
 #Finding
@@ -98,3 +98,44 @@ df[['horsepower','horsepower-binned']].head(20)
 
 #Guardar
 df.to_csv('PythonTest.csv') 
+
+### EDA: Exploratory Data Anaylisis ###########################################
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+#General 
+df.describe()
+df.describe(include=['object']) #Sum of categorical variables
+df.corr() #Correlation between all pair of numerical variables
+
+#Between 2 quantitative variables (Dependent: price, independent: engine-size)
+df[["engine-size", "price"]].corr() #Coeficiente correlación
+
+pearson_coef, p_value = stats.pearsonr(df['engine-size'], df['price']) #Coeficiente y p value por el método de Pearson
+print("The Pearson Correlation Coefficient is", pearson_coef, " with a P-value of P = ", p_value)
+
+sns.regplot(x="engine-size", y="price", data=df) #Visualization of lineal regresion
+
+#Categorical variables
+drive_wheels_counts = df['drive-wheels'].value_counts().to_frame() #To count values in 1 variable
+
+sns.boxplot(x="body-style", y="price", data=df) #Visualization of distribution price along categories
+
+#Categorical, GROUPING
+group_1 = df[['price', 'drive-wheels','body-style']].groupby(['drive-wheels','body-style'],as_index=False).mean() #Groupby 2 variables
+group_1_pivot = group_1.pivot(index='drive-wheels', columns='body-style') #Para ordenar a tabla más comprensible
+group_1_pivot
+group_1_pivot = group_1_pivot.fillna(0) #fill missing values with 0
+
+plt.pcolor(group_1_pivot, cmap='Blues')
+plt.colorbar() #Imprime la barra/leyenda
+plt.show() #Visualization HEATMAP medias 'price' por categorías. Faltan los labels (complejo)
+
+#Categ, grouping, ANOVA
+group_2 = df[['price', 'drive-wheels']].groupby(['drive-wheels']) #No genera df????
+group_2.head()
+group_2.get_group('4wd')['price'] #Obtaining specific subgroups with method get_group
+f_val, p_val = stats.f_oneway(group_2.get_group('fwd')['price'], group_2.get_group('rwd')['price'], group_2.get_group('4wd')['price'])  
+print( "ANOVA results: F=", f_val, ", P =", p_val)
+
