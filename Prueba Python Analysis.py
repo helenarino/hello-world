@@ -139,3 +139,91 @@ group_2.get_group('4wd')['price'] #Obtaining specific subgroups with method get_
 f_val, p_val = stats.f_oneway(group_2.get_group('fwd')['price'], group_2.get_group('rwd')['price'], group_2.get_group('4wd')['price'])  
 print( "ANOVA results: F=", f_val, ", P =", p_val)
 
+### MODEL DEVELOPMENT #########################################################
+
+### SLR (simple linear regression)
+from sklearn.linear_model import LinearRegression
+lm=LinearRegression()
+X = df[['highway-mpg']]
+Y = df['price']
+lm.fit(X,Y)
+Yhat = lm.predict(X)
+
+new_input = np.arange(1,101,1).reshape(-1,1)
+yhat_2=lm.predict(new_input) #To predict new values (for a range of X, i.e)
+
+# MLR (multiple linear regression)
+Z = df[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']]
+lm.fit(Z, df['price'])
+lm.intercept_ #Value of intercept (Y at X=0)
+lm.coef_#coefficients of each variable
+
+### Model evaluation through visualization
+sns.regplot(x='highway-mpg', y='price', data=df) #Regression plot
+sns.residplot(df['highway-mpg'], df['price']) #Residual plot, showing different distribution of variance depending on highway-mpg
+
+ax1 = sns.distplot(df['price'], hist=False, color="r", label="Actual value")
+sns.distplot(Yhat, hist=False, color="b", label="Fitted values", ax=ax1) #Distribution plot (actual vs. predicted values)
+
+### Polynomial regression
+
+#Using np.polyfit (for 1 dimension model)
+def PlotPolly(model, independent_variable, dependent_variabble, Name):
+    x_new = np.linspace(15, 55, 100)
+    y_new = model(x_new)
+
+    plt.plot(independent_variable, dependent_variabble, '.', x_new, y_new, '-')
+    plt.title('Polynomial Fit with Matplotlib for Price ~ Length')
+    ax = plt.gca()
+    ax.set_facecolor((0.898, 0.898, 0.898))
+    plt.xlabel(Name)
+    plt.ylabel('Price of Cars')
+
+    plt.show()
+    plt.close()
+
+x = df['highway-mpg']
+y = df['price']
+f = np.polyfit(x, y, 3) #Definition of a polynomial of the 3rd order (cubic) 
+p = np.poly1d(f) #To find the coefficienst in polynomial
+print(p)
+PlotPolly(p, x, y, 'highway-mpg')
+
+#Multivariate Polynomial regression (more than 1 variable). Not possible with np.polyfit
+from sklearn.preprocessing import PolynomialFeatures
+pr=PolynomialFeatures(degree=2) 
+Z_pr=pr.fit_transform(Z) #polynomial transform on multiple features
+Z.shape
+Z_pr.shape #From 4 features (Z) to 15 features
+
+#Multivariate Polynomial. PIPELINE (to simplify transformation)
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler #For normalization of variables
+Input=[('scale',StandardScaler()), ('polynomial', PolynomialFeatures(include_bias=False)), ('model',LinearRegression())] #create the pipeline, by creating a list of tuples
+pipe=Pipeline(Input)
+pipe
+pipe.fit(Z,y)
+ypipe=pipe.predict(Z)
+ypipe[0:4]
+
+
+### Model evaluation using in-sample measures
+
+#SLR
+lm.fit(X,Y)
+print("R2 is ", lm.score(X,Y)) # R^2 value after fitting a linear regression model
+print('The output of the first four predicted value is: ', Yhat[0:4])
+
+from sklearn.metrics import mean_squared_error
+mse = mean_squared_error(df['price'], Yhat) # MSE 
+
+#MLR
+lm.fit(Z, df['price'])
+print('The R-square is: ', lm.score(Z, df['price'])) #Find the R^2
+print('The mean square error of price and predicted value using multifit is: ', \
+      mean_squared_error(df['price'], lm.predict(Z)))
+
+#Polynomial fit
+from sklearn.metrics import r2_score
+r_squared = r2_score(y, p(df['highway-mpg'])) #R2
+mean_squared_error(df['price'], p(x)) #MSE
