@@ -227,3 +227,132 @@ print('The mean square error of price and predicted value using multifit is: ', 
 from sklearn.metrics import r2_score
 r_squared = r2_score(y, p(df['highway-mpg'])) #R2
 mean_squared_error(df['price'], p(x)) #MSE
+
+
+### MODEL EVALUATION #########################################################
+
+## Import clean data to work with in this example
+path = 'https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DA0101EN/module_5_auto.csv'
+df = pd.read_csv(path)
+df.to_csv('module_5_auto.csv')
+
+## 1A.Split
+y_data = df['price']
+x_data = df.drop('price', axis=1)
+from sklearn.model_selection import train_test_split
+x_train, x_test,y_train,y_test = train_test_split(x_data,y_data,test_size=0.15,random_state=1)
+print("number of test samples :", x_test.shape[0])
+print("number of training samples:",x_train.shape[0])# To see the number of cases
+
+# 1B.Fit the model (in this case, SLR) 
+from sklearn.linear_model import LinearRegression
+lre = LinearRegression()
+lre.fit(x_train[['horsepower']], y_train)
+print("R^2 on the test data", lre.score(x_test[['horsepower']], y_test))
+print("R^2 on the train data", lre.score(x_train[['horsepower']], y_train))
+
+## 2.Cross validation
+from sklearn.model_selection import cross_val_score #To estimate error measures
+Rcross = cross_val_score(lre,x_data[['horsepower']],y_data,cv=4)
+print("The mean of the folds are", Rcross.mean(), "and the standard deviation is" , Rcross.std())
+
+from sklearn.model_selection import cross_val_predict #To find the predictions over the test set
+yhat = cross_val_predict(lre,x_data[['horsepower']],y_data,cv=4)
+yhat[0:5]
+
+## 3.Model selection (example for MLR)
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+lre.fit(x_train[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']], y_train)
+yhat_train = lre.predict(x_train[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']])
+yhat_test = lre.predict(x_test[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']])
+yhat_test[0:5]
+
+#Graphical comprobation of out-of-sample performance
+ax1_train = sns.distplot(y_train, hist=False, color="r", label="Actual values(Train)")
+ax2_train = sns.distplot(yhat_train, hist=False, color="b", label="Predicted value (Train)", ax=ax1_train)
+ax1_test = sns.distplot(y_test, hist=False, color="r", label="Actual values(Test)")
+ax2_test = sns.distplot(yhat_test, hist=False, color="b", label="Predicted value (Test)", ax=ax1_test) #Bad fitting ranges 5000 to 15 000
+#Trying an alternative model: Polynomil regression
+from sklearn.preprocessing import PolynomialFeatures
+x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.45, random_state=0)
+pr = PolynomialFeatures(degree=5)
+x_train_pr = pr.fit_transform(x_train[['horsepower']])
+x_test_pr = pr.fit_transform(x_test[['horsepower']])
+poly = LinearRegression()
+poly.fit(x_train_pr, y_train)
+yhat = poly.predict(x_test_pr)
+yhat[0:5]
+
+def PollyPlot(xtrain, xtest, y_train, y_test, lr,poly_transform):
+    width = 12
+    height = 10
+    plt.figure(figsize=(width, height))
+    #training data 
+    #testing data 
+    # lr:  linear regression object 
+    #poly_transform:  polynomial transformation object 
+    xmax=max([xtrain.values.max(), xtest.values.max()])
+    xmin=min([xtrain.values.min(), xtest.values.min()])
+    x=np.arange(xmin, xmax, 0.1)
+    plt.plot(xtrain, y_train, 'ro', label='Training Data')
+    plt.plot(xtest, y_test, 'go', label='Test Data')
+    plt.plot(x, lr.predict(poly_transform.fit_transform(x.reshape(-1, 1))), label='Predicted Function')
+    plt.ylim([-10000, 60000])
+    plt.ylabel('Price')
+    plt.legend()
+
+PollyPlot(x_train[['horsepower']], x_test[['horsepower']], y_train, y_test, poly,pr) #Around 200 horsepower, the function fails
+
+poly.score(x_test_pr, y_test) #a Negative R^2 is a sign of overfitting
+
+#Chossing the best model with R2 among different order polynomials
+Rsqu_test=[]
+order=[1,2,3,4]
+for n in order:
+    pr = PolynomialFeatures(degree=n)
+    x_train_pr = pr.fit_transform(x_train[['horsepower']])
+    x_test_pr = pr.fit_transform(x_test[['horsepower']])
+    lre.fit(x_train_pr,y_train)
+    Rsqu_test.append(lre.score(x_test_pr,y_test))
+plt.plot(order, Rsqu_test)
+plt.xlabel('Order')
+plt.ylabel('R^2')
+plt.title('R^2 Using Test Data')
+plt.text(3, 0.75, 'Maximum R^2 ') 
+
+## 4.Ridge regression
+pr=PolynomialFeatures(degree=2)
+x_train_pr=pr.fit_transform(x_train[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg','normalized-losses','symboling']])
+x_test_pr=pr.fit_transform(x_test[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg','normalized-losses','symboling']])
+from sklearn.linear_model import Ridge
+RigeModel = Ridge(alpha=0.1)
+RigeModel.fit(x_train_pr,y_train)
+Yhat = RigeModel.predict(x_train_pr)
+#Loop to select Alpha that minimizes the test error
+Rsqu_test = []
+Rsqu_train = []
+dummy1 = []
+ALFA = np.arange(1000)
+for alfa in ALFA:
+    RigeModel = Ridge(alpha=alfa) 
+    RigeModel.fit(x_train_pr, y_train)
+    Rsqu_test.append(RigeModel.score(x_test_pr, y_test))
+    Rsqu_train.append(RigeModel.score(x_train_pr, y_train))
+plt.plot(ALFA,Rsqu_test, label='validation data  ')
+plt.plot(ALFA,Rsqu_train, 'r', label='training Data ')
+plt.xlabel('alpha')
+plt.ylabel('R^2')
+plt.legend() #After asymptote,R2 decreases as the value for Alfa increases  
+
+#Grid-Search (finding the best hyperparameters automatically)
+from sklearn.model_selection import GridSearchCV
+parameters1 = [{'alpha': [0.001,0.1,1,10,100,1000,10000,100000,1000000]}] #dictionary of parameter values
+RR = Ridge()
+Grid1 = GridSearchCV(RR, parameters1, cv=4)
+Grid1.fit(x_data[['horsepower','curb-weight', 'engine-size', 'highway-mpg']], y_data)
+BestRR = Grid1.best_estimator_
+BestRR.score(x_test[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']], y_test) #We now test the model
+scores = Grid1.cv_results_
+scores['mean_test_score']
